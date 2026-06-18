@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PNL // PokerNow Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#07090d; --bg2:#0a0d12; --panel:#0c1015; --panel2:#10151c;
+    --line:#19212c; --line2:#222c3a;
+    --txt:#dfe6ee; --txt2:#aab4c2; --muted:#586577; --faint:#3a4554;
+    --accent:#34e3c8; --accent-dim:#1c8e7e; --accent2:#6f8cff;
+    --pos:#2fd6a6; --neg:#ff5d73; --warn:#f5b14c;
+    --glow:0 0 0 1px rgba(52,227,200,.0),0 0 18px -6px rgba(52,227,200,.5);
+    --mono:"JetBrains Mono",ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  ::selection{background:rgba(52,227,200,.25);color:#fff}
+  html{scrollbar-color:var(--line2) transparent}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--line2);border-radius:10px;border:2px solid var(--bg)}
+  ::-webkit-scrollbar-track{background:transparent}
+  body{
+    margin:0;color:var(--txt);font-family:var(--mono);font-size:13px;line-height:1.5;
+    letter-spacing:.1px;
+    background:
+      radial-gradient(900px 500px at 85% -10%,rgba(52,227,200,.05),transparent 60%),
+      radial-gradient(700px 500px at 0% 0%,rgba(111,140,255,.045),transparent 55%),
+      linear-gradient(var(--bg),var(--bg));
+    background-attachment:fixed;
+  }
+  /* faint engineering grid overlay */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.014) 1px,transparent 1px);
+    background-size:42px 42px;
+    mask-image:radial-gradient(circle at 50% 0%,#000 40%,transparent 90%);
+  }
+  body>*{position:relative;z-index:1}
+  h1,h2,h3{font-weight:600}
+
+  header{
+    padding:0 22px;height:56px;display:flex;align-items:center;gap:22px;
+    border-bottom:1px solid var(--line);background:#07090d;
+    position:sticky;top:0;z-index:50;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:2px;font-size:13px}
+  .brand .mark{color:var(--accent);text-shadow:0 0 12px rgba(52,227,200,.6);font-size:15px}
+  .brand .sub{color:var(--muted);font-weight:500;letter-spacing:1px}
+  .tabs{display:flex;gap:2px}
+  .tab{
+    padding:8px 16px;cursor:pointer;color:var(--muted);font-weight:600;user-select:none;
+    font-size:11px;letter-spacing:1.5px;text-transform:uppercase;position:relative;
+    transition:color .15s;
+  }
+  .tab:hover{color:var(--txt2)}
+  .tab.active{color:var(--accent)}
+  .tab.active::after{
+    content:"";position:absolute;left:12px;right:12px;bottom:-1px;height:2px;
+    background:var(--accent);box-shadow:0 0 10px rgba(52,227,200,.7);border-radius:2px;
+  }
+  .spacer{flex:1}
+
+  .toolbar{
+    display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 22px;
+    border-bottom:1px solid var(--line);background:rgba(10,13,18,.5);
+  }
+  input[type=search],input.txt,input[type=number],select.txt{
+    background:var(--bg2);border:1px solid var(--line2);color:var(--txt);
+    padding:7px 11px;border-radius:7px;outline:none;font-family:var(--mono);font-size:12px;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  input[type=search]{min-width:240px}
+  input[type=search]:focus,input.txt:focus,input[type=number]:focus,select.txt:focus{
+    border-color:var(--accent-dim);box-shadow:0 0 0 3px rgba(52,227,200,.1)}
+  input[type=search]::placeholder{color:var(--faint)}
+  button{
+    background:var(--panel2);border:1px solid var(--line2);color:var(--txt2);
+    padding:7px 13px;border-radius:7px;cursor:pointer;font-weight:600;font-family:var(--mono);
+    font-size:11px;letter-spacing:.6px;text-transform:uppercase;transition:all .15s;
+  }
+  button:hover:not(:disabled){border-color:var(--accent-dim);color:var(--txt);box-shadow:0 0 14px -8px var(--accent)}
+  button.primary{background:linear-gradient(180deg,rgba(52,227,200,.16),rgba(52,227,200,.06));border-color:var(--accent-dim);color:var(--accent)}
+  button.primary:hover:not(:disabled){box-shadow:0 0 16px -6px var(--accent)}
+  button.danger{color:var(--neg);border-color:rgba(255,93,115,.25)}
+  button.danger:hover:not(:disabled){border-color:var(--neg);box-shadow:0 0 14px -8px var(--neg)}
+  button.warn{color:var(--warn);border-color:rgba(245,177,76,.25)}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;background:var(--bg2);
+    border:1px solid var(--line2);border-radius:7px;padding:5px 10px;font-size:11px;
+    color:var(--muted);letter-spacing:.5px;text-transform:uppercase;
+  }
+  .pill input{accent-color:var(--accent)}
+
+  .wrap{padding:20px 22px;max-width:1500px;margin:0 auto}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--bg2));
+    border:1px solid var(--line);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden;
+  }
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,var(--accent-dim),transparent);opacity:.5}
+  .card .k{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:1.4px}
+  .card .v{font-size:23px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+  .card .v .sub{font-size:12px;font-weight:500}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  table{border-collapse:collapse;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+  th,td{padding:10px 14px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums;vertical-align:middle}
+  th:first-child,td:first-child{text-align:left}
+  th{
+    position:sticky;top:56px;background:var(--bg2);cursor:pointer;user-select:none;
+    font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;
+    z-index:30;border-bottom:1px solid var(--line2);
+  }
+  th:hover{color:var(--txt2)}
+  th.sorted{color:var(--accent)}
+  th.sorted::after{content:" ▾";color:var(--accent)}
+  th.sorted.asc::after{content:" ▴";color:var(--accent)}
+  tbody tr{transition:background .1s}
+  tbody tr:hover td{background:rgba(52,227,200,.035)}
+  tbody tr:hover td:first-child{box-shadow:inset 2px 0 0 var(--accent)}
+  td.name{text-align:left}
+  .names{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+  .nm{background:var(--bg2);border:1px solid var(--line2);border-radius:5px;padding:1px 7px;font-size:11px;color:var(--txt2)}
+  .nm.more{color:var(--muted)}
+  .pos{color:var(--pos)} .neg{color:var(--neg)} .mut{color:var(--muted)}
+  .row-actions{display:flex;gap:6px;justify-content:flex-end}
+  .row-actions button{padding:3px 9px;font-size:10px}
+  .sub{font-size:11px;color:var(--muted)}
+  .expand{background:var(--bg2)}
+  .expand>td{border-bottom:1px solid var(--line2);padding:12px 16px}
+  .minitable{width:100%;border:none;background:transparent;border-radius:0}
+  .minitable th{position:static;background:transparent;top:auto}
+  .minitable th,.minitable td{border-bottom:1px solid var(--line);padding:5px 9px}
+  details summary{cursor:pointer;color:var(--accent);font-weight:600}
+  .suggest{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+  .suggest h3{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--txt2)}
+  .scluster{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px;border:1px dashed var(--line2);border-radius:8px;margin-bottom:8px}
+  .scluster .grow{flex:1}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .muted-row td{opacity:.45}
+  .badge{font-size:10px;padding:1px 6px;border-radius:5px;background:rgba(111,140,255,.16);color:var(--accent2);border:1px solid rgba(111,140,255,.3);letter-spacing:.5px}
+  .checkcell{width:30px;text-align:center}
+  .checkcell input{accent-color:var(--accent)}
+  .hint{color:var(--muted);font-size:12px;margin:8px 0}
+  .empty{padding:48px;text-align:center;color:var(--muted);letter-spacing:1px;text-transform:uppercase;font-size:12px}
+  .sticky-actions{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:10px 20px;display:flex;gap:8px;align-items:center;z-index:5}
+  .toast{
+    position:fixed;bottom:20px;right:20px;background:var(--panel);color:var(--accent);
+    padding:11px 18px;border-radius:9px;opacity:0;transform:translateY(6px);
+    transition:opacity .25s,transform .25s;pointer-events:none;font-weight:600;font-size:12px;
+    border:1px solid var(--accent-dim);box-shadow:0 8px 30px -10px rgba(52,227,200,.5),0 0 0 1px rgba(52,227,200,.05);
+    letter-spacing:.5px;
+  }
+  .toast.show{opacity:1;transform:translateY(0)}
+  .chart-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+  .chart-card h3{margin:0 0 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:var(--txt2);display:flex;align-items:center;gap:8px}
+  .chart-card h3::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+  .chart-card h3 .sub{text-transform:none;letter-spacing:0;font-weight:500}
+  .chart-box{position:relative;width:100%}
+  .chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:14px}
+  body.readonly .admin{display:none !important}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="mark">◆</span>PNL<span class="sub">// pokernow terminal</span></div>
+  <div class="tabs">
+    <div class="tab active" data-tab="overview">Overview</div>
+    <div class="tab" data-tab="games">Games</div>
+    <div class="tab" data-tab="charts">Charts</div>
+  </div>
+  <div class="spacer"></div>
+  <span class="pill" id="dataset-pill">—</span>
+  <button id="unitBtn" title="Toggle dollars / raw chips">$ USD</button>
+  <button id="exportBtn" class="admin">Export</button>
+  <button id="importBtn" class="admin">Import</button>
+  <button id="resetBtn" class="danger admin">Reset</button>
+  <input type="file" id="importFile" accept="application/json" style="display:none">
+</header>
+
+<!-- OVERVIEW TAB -->
+<section id="tab-overview">
+  <div class="toolbar">
+    <input type="search" id="ovSearch" placeholder="Filter people by name or ID…">
+    <button id="suggestBtn" class="admin">Suggest duplicate names</button>
+    <button id="mergeSelBtn" class="primary admin" disabled>Merge selected (0)</button>
+    <button id="clearSelBtn" class="admin" disabled>Clear selection</button>
+    <span class="spacer"></span>
+    <label class="pill admin"><input type="checkbox" id="showPruned"> show pruned</label>
+  </div>
+  <div class="wrap">
+    <div class="cards" id="ovCards"></div>
+    <div id="suggestPanel"></div>
+    <table id="ovTable">
+      <thead><tr id="ovHead"></tr></thead>
+      <tbody id="ovBody"></tbody>
+    </table>
+    <div class="empty" id="ovEmpty" style="display:none">No people to show.</div>
+  </div>
+</section>
+
+<!-- GAMES TAB -->
+<section id="tab-games" style="display:none">
+  <div class="toolbar">
+    <input type="search" id="gmSearch" placeholder="Filter games by ID or player name…">
+    <span class="spacer"></span>
+    <label class="pill admin"><input type="checkbox" id="showPrunedGames"> show pruned</label>
+  </div>
+  <div class="wrap">
+    <div class="cards" id="gmCards"></div>
+    <table id="gmTable">
+      <thead><tr id="gmHead"></tr></thead>
+      <tbody id="gmBody"></tbody>
+    </table>
+    <div class="empty" id="gmEmpty" style="display:none">No games to show.</div>
+  </div>
+</section>
+
+<!-- CHARTS TAB -->
+<section id="tab-charts" style="display:none">
+  <div class="toolbar">
+    <label class="pill">min |net| filter
+      <input type="number" id="chMin" value="50" min="0" step="10" style="width:70px;margin-left:6px">
+    </label>
+    <label class="pill">x-axis
+      <select id="chX" class="txt" style="min-width:auto;padding:4px 6px;margin-left:6px">
+        <option value="date">calendar date</option>
+        <option value="session">session #</option>
+      </select>
+    </label>
+    <button id="chTop">Show top 10 only</button>
+    <button id="chAll">Show all</button>
+    <span class="spacer"></span>
+    <span class="pill" id="chInfo">—</span>
+  </div>
+  <div class="wrap">
+    <div class="cards" id="chCards"></div>
+    <div class="chart-card">
+      <h3>Cumulative net over time <span class="sub">— click a name in the legend to toggle it</span></h3>
+      <div class="chart-box" style="height:420px"><canvas id="cChrono"></canvas></div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>Net by player</h3>
+        <div class="chart-box" style="height:460px"><canvas id="cLeader"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Biggest single sessions <span class="sub">(by |net|)</span></h3>
+        <div class="chart-box" style="height:460px"><canvas id="cSessions"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Monthly volume <span class="sub">(total buy-in) &amp; games played</span></h3>
+        <div class="chart-box" style="height:340px"><canvas id="cMonthly"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Risk vs reward <span class="sub">— bubble size = games played</span></h3>
+        <div class="chart-box" style="height:340px"><canvas id="cScatter"></canvas></div>
+      </div>
+    </div>
+    <div class="empty" id="chEmpty" style="display:none">No dated games to chart.</div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script src="chart.umd.min.js"></script>
+<script src="data.js"></script>
+<script>
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const GAMES = window.GAMES || [];
+const LS_KEY = "pokerstats_edits_v1";
+/* One-time auto-seed of the edit state from edits.json for this data refresh.
+   Keeps the existing merges/labels/prunes loaded so new in-browser merges are
+   additive and a later Export preserves everything. Version-guarded: an
+   accidental refresh mid-session won't clobber in-progress work, and the
+   public READONLY build (which seeds labels via config.js) skips it. */
+(function(){
+  if(window.READONLY)return;
+  const SEED_VER="2026-06-18";
+  try{
+    if(localStorage.getItem("pokerstats_seed_ver")===SEED_VER)return;
+    const x=new XMLHttpRequest();
+    x.open("GET","edits.json",false);   // sync so it lands before loadState()
+    x.send(null);
+    if(x.status===200||x.status===0){
+      localStorage.setItem(LS_KEY,x.responseText);
+      localStorage.setItem("pokerstats_seed_ver",SEED_VER);
+      console.log("[pokerstats] seeded edit state from edits.json");
+    }
+  }catch(e){console.warn("[pokerstats] auto-seed skipped:",e);}
+})();
+let unitDollars = true;
+
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),1600);}
+function money(n){
+  if(unitDollars){const v=n/100;const s=(v<0?"-":"")+"$"+Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});return s;}
+  return n.toLocaleString();
+}
+function cls(n){return n>0?"pos":(n<0?"neg":"mut");}
+
+/* ---------- edit state (persisted) ---------- */
+// parent: union-find map id->parentId ; labels: canonical->custom name
+// prunedPersons: Set of canonical ids ; prunedGames: Set of game ids
+let state = {parent:{}, labels:{}, prunedPersons:[], prunedGames:[]};
+function loadState(){
+  // Read-only (public) build: merges+prunes are already baked into data.js;
+  // only the rename labels are seeded. No localStorage, no mutation.
+  if(window.READONLY){
+    state={parent:{},labels:window.SEED_LABELS||{},prunedPersons:new Set(),prunedGames:new Set()};
+    return;
+  }
+  try{const s=JSON.parse(localStorage.getItem(LS_KEY));if(s)state=Object.assign(state,s);}catch(e){}
+  state.prunedPersons = new Set(state.prunedPersons||[]);
+  state.prunedGames = new Set(state.prunedGames||[]);
+}
+function saveState(){
+  if(window.READONLY)return;
+  const out={parent:state.parent,labels:state.labels,
+    prunedPersons:[...state.prunedPersons],prunedGames:[...state.prunedGames]};
+  localStorage.setItem(LS_KEY,JSON.stringify(out));
+}
+function find(id){let p=state.parent[id];if(p===undefined||p===id){return id;}
+  // path compression
+  const root=find(p);state.parent[id]=root;return root;}
+function union(a,b){const ra=find(a),rb=find(b);if(ra===rb)return;state.parent[rb]=ra;}
+
+/* ---------- base aggregation per account id ---------- */
+// returns Map canonical -> aggregate, honoring prunes & unions
+function aggregate(){
+  const perId = new Map(); // id -> {names:Set, games:Set, buyIn,buyOut,inGame,nitEscrow,net}
+  for(const g of GAMES){
+    if(state.prunedGames.has(g.id))continue;
+    for(const p of g.players){
+      if(!perId.has(p.id))perId.set(p.id,{id:p.id,names:new Set(),games:new Set(),buyIn:0,buyOut:0,inGame:0,nitEscrow:0,net:0});
+      const a=perId.get(p.id);
+      (p.names||[]).forEach(n=>a.names.add(n));
+      a.games.add(g.id);
+      a.buyIn+=p.buyInSum||0;a.buyOut+=p.buyOutSum||0;a.inGame+=p.inGame||0;
+      a.nitEscrow+=p.nitEscrow||0;a.net+=p.net||0;
+    }
+  }
+  // group by union-find canonical
+  const groups=new Map();
+  for(const [id,a] of perId){
+    if(state.prunedPersons.has(find(id)))continue;
+    const c=find(id);
+    if(!groups.has(c))groups.set(c,{canonical:c,ids:[],names:new Set(),games:new Set(),buyIn:0,buyOut:0,inGame:0,nitEscrow:0,net:0});
+    const G=groups.get(c);
+    G.ids.push(id);a.names.forEach(n=>G.names.add(n));a.games.forEach(x=>G.games.add(x));
+    G.buyIn+=a.buyIn;G.buyOut+=a.buyOut;G.inGame+=a.inGame;G.nitEscrow+=a.nitEscrow;G.net+=a.net;
+  }
+  return {perId,groups};
+}
+
+/* ---------- name helpers ---------- */
+function norm(s){return (s||"").toLowerCase().replace(/[^a-z0-9]/g,"");}
+function displayName(G){
+  if(state.labels[G.canonical])return state.labels[G.canonical];
+  // most common / first name
+  const arr=[...G.names];
+  return arr[0]||G.canonical;
+}
+
+/* ---------- selection ---------- */
+let selected=new Set();
+function updateSelUI(){
+  $("#mergeSelBtn").textContent=`Merge selected (${selected.size})`;
+  $("#mergeSelBtn").disabled=selected.size<2;
+  $("#clearSelBtn").disabled=selected.size===0;
+}
+
+/* ---------- OVERVIEW render ---------- */
+const OV_COLS=[
+  {k:"name",label:"Person",num:false},
+  {k:"gamesN",label:"Games",num:true},
+  {k:"buyIn",label:"Buy-in",num:true},
+  {k:"buyOut",label:"Buy-out",num:true},
+  {k:"inGame",label:"In-game",num:true},
+  {k:"nitEscrow",label:"Nit escrow",num:true},
+  {k:"net",label:"Net",num:true},
+];
+let ovSort={k:"net",asc:false};
+let expandedPerson=new Set();
+
+function renderOverview(){
+  const {groups}=aggregate();
+  let rows=[...groups.values()].map(G=>({
+    canonical:G.canonical, ids:G.ids, names:[...G.names], gamesN:G.games.size, games:[...G.games],
+    buyIn:G.buyIn, buyOut:G.buyOut, inGame:G.inGame, nitEscrow:G.nitEscrow, net:G.net,
+    display:displayName(G)
+  }));
+  // search
+  const q=norm($("#ovSearch").value);
+  if(q)rows=rows.filter(r=>r.ids.some(i=>norm(i).includes(q))||r.names.some(n=>norm(n).includes(q))||norm(r.display).includes(q));
+  // sort
+  rows.sort((a,b)=>{
+    let x,y;
+    if(ovSort.k==="name"){x=a.display.toLowerCase();y=b.display.toLowerCase();return ovSort.asc?(x<y?-1:x>y?1:0):(x>y?-1:x<y?1:0);}
+    x=a[ovSort.k];y=b[ovSort.k];return ovSort.asc?x-y:y-x;
+  });
+
+  // cards
+  // count games actually present (data.js already bakes out pruned games, so
+  // only subtract NEW in-browser prunes — never blind-subtract the whole set)
+  const incGames=GAMES.reduce((n,g)=>n+(state.prunedGames.has(g.id)?0:1),0);
+  const totBuy=rows.reduce((s,r)=>s+r.buyIn,0);
+  const totNet=rows.reduce((s,r)=>s+r.net,0);
+  $("#ovCards").innerHTML=`
+    <div class="card"><div class="k">People</div><div class="v">${rows.length}</div></div>
+    <div class="card"><div class="k">Games included</div><div class="v">${incGames}<span class="sub"> / ${GAMES.length}</span></div></div>
+    <div class="card"><div class="k">Total buy-in</div><div class="v">${money(totBuy)}</div></div>
+    <div class="card"><div class="k">Sum of nets</div><div class="v ${cls(totNet)}">${money(totNet)}</div></div>`;
+
+  // head
+  const RO=window.READONLY;
+  $("#ovHead").innerHTML=(RO?"":`<th class="checkcell"></th>`)+OV_COLS.map(c=>{
+    const sortedCls=ovSort.k===c.k?("sorted "+(ovSort.asc?"asc":"")):"";
+    return `<th class="${sortedCls}" data-k="${c.k}">${c.label}</th>`;
+  }).join("")+(RO?"":`<th></th>`);
+  $("#ovHead").querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k;if(ovSort.k===k)ovSort.asc=!ovSort.asc;else{ovSort.k=k;ovSort.asc=(k==="name");}renderOverview();
+  });
+
+  // body
+  const body=$("#ovBody");body.innerHTML="";
+  $("#ovEmpty").style.display=rows.length?"none":"block";
+  for(const r of rows){
+    const tr=document.createElement("tr");
+    const namesHtml=r.names.slice(0,4).map(n=>`<span class="nm">${escapeHtml(n)}</span>`).join("")
+      +(r.names.length>4?`<span class="nm more">+${r.names.length-4}</span>`:"")
+      +(r.ids.length>1?` <span class="badge">${r.ids.length} ids</span>`:"");
+    tr.innerHTML=(RO?"":`
+      <td class="checkcell"><input type="checkbox" data-c="${r.canonical}" ${selected.has(r.canonical)?"checked":""}></td>`)+`
+      <td class="name"><div class="names"><strong>${escapeHtml(r.display)}</strong></div><div class="names" style="margin-top:3px">${namesHtml}</div></td>
+      <td><a href="#" data-exp="${r.canonical}">${r.gamesN}</a></td>
+      <td>${money(r.buyIn)}</td>
+      <td>${money(r.buyOut)}</td>
+      <td>${money(r.inGame)}</td>
+      <td>${money(r.nitEscrow)}</td>
+      <td class="${cls(r.net)}">${money(r.net)}</td>`+(RO?"":`
+      <td class="row-actions">
+        <button data-rename="${r.canonical}">Rename</button>
+        ${r.ids.length>1?`<button data-split="${r.canonical}" class="warn">Unmerge</button>`:""}
+        <button data-prune="${r.canonical}" class="danger">Prune</button>
+      </td>`);
+    body.appendChild(tr);
+    if(expandedPerson.has(r.canonical)){
+      body.appendChild(personExpand(r));
+    }
+  }
+  // wire
+  body.querySelectorAll("input[type=checkbox]").forEach(cb=>cb.onchange=()=>{
+    if(cb.checked)selected.add(cb.dataset.c);else selected.delete(cb.dataset.c);updateSelUI();
+  });
+  body.querySelectorAll("[data-exp]").forEach(a=>a.onclick=e=>{e.preventDefault();const c=a.dataset.exp;expandedPerson.has(c)?expandedPerson.delete(c):expandedPerson.add(c);renderOverview();});
+  body.querySelectorAll("[data-rename]").forEach(b=>b.onclick=()=>{
+    const c=b.dataset.rename;const cur=state.labels[c]||"";
+    const v=prompt("Display name for this person:",cur);
+    if(v!==null){if(v.trim())state.labels[c]=v.trim();else delete state.labels[c];saveState();renderOverview();}
+  });
+  body.querySelectorAll("[data-prune]").forEach(b=>b.onclick=()=>{
+    const c=b.dataset.prune;state.prunedPersons.add(c);selected.delete(c);saveState();updateSelUI();renderOverview();toast("Person pruned");
+  });
+  body.querySelectorAll("[data-split]").forEach(b=>b.onclick=()=>{
+    const c=b.dataset.split;splitGroup(c);saveState();renderOverview();toast("Unmerged");
+  });
+  updateSelUI();
+}
+
+function personExpand(r){
+  const tr=document.createElement("tr");tr.className="expand";
+  const td=document.createElement("td");td.colSpan=window.READONLY?7:9;
+  // per-game breakdown for this person's ids
+  const rowsByGame=[];
+  for(const g of GAMES){
+    if(state.prunedGames.has(g.id))continue;
+    for(const p of g.players){
+      if(find(p.id)!==r.canonical)continue;
+      if(state.prunedPersons.has(r.canonical))continue;
+      rowsByGame.push({gid:g.id,name:(p.names||[]).join(" / "),id:p.id,buyIn:p.buyInSum,buyOut:p.buyOutSum,inGame:p.inGame,net:p.net});
+    }
+  }
+  td.innerHTML=`
+    <div class="sub" style="margin-bottom:6px">Account IDs: ${r.ids.map(i=>`<span class="nm">${i}</span>`).join(" ")} · all names: ${r.names.map(n=>`<span class="nm">${escapeHtml(n)}</span>`).join(" ")}</div>
+    <table class="minitable"><thead><tr><th style="text-align:left">Game</th><th style="text-align:left">Name used</th><th>Buy-in</th><th>Buy-out</th><th>In-game</th><th>Net</th></tr></thead>
+    <tbody>${rowsByGame.map(x=>`<tr>
+      <td style="text-align:left"><a href="https://www.pokernow.com/games/${x.gid}" target="_blank">${x.gid.slice(0,14)}…</a></td>
+      <td style="text-align:left">${escapeHtml(x.name)}</td>
+      <td>${money(x.buyIn)}</td><td>${money(x.buyOut)}</td><td>${money(x.inGame)}</td>
+      <td class="${cls(x.net)}">${money(x.net)}</td></tr>`).join("")}</tbody></table>`;
+  tr.appendChild(td);return tr;
+}
+
+function splitGroup(canonical){
+  // remove all union links pointing into this group: reset each member to itself
+  const members=Object.keys(state.parent).filter(id=>find(id)===canonical);
+  members.forEach(id=>delete state.parent[id]);
+  // also the canonical itself
+  delete state.parent[canonical];
+  delete state.labels[canonical];
+}
+
+/* ---------- suggestions ---------- */
+function renderSuggestions(){
+  const {groups}=aggregate();
+  const gArr=[...groups.values()];
+  // map normalized name token -> list of canonicals that have it
+  const byName=new Map();
+  for(const G of gArr){
+    const tokens=new Set();
+    [...G.names].forEach(n=>{const k=norm(n);if(k.length>=2)tokens.add(k);});
+    for(const t of tokens){if(!byName.has(t))byName.set(t,new Set());byName.get(t).add(G.canonical);}
+  }
+  // clusters: name shared by >=2 distinct persons
+  const clusters=[];
+  const seenPairKey=new Set();
+  for(const [t,set] of byName){
+    if(set.size<2)continue;
+    const ids=[...set];
+    const key=ids.slice().sort().join("|");
+    if(seenPairKey.has(key))continue;seenPairKey.add(key);
+    clusters.push({token:t,canonicals:ids});
+  }
+  clusters.sort((a,b)=>b.canonicals.length-a.canonicals.length);
+  const panel=$("#suggestPanel");
+  if(!clusters.length){panel.innerHTML=`<div class="suggest"><h3>Duplicate-name suggestions</h3><div class="sub">No people currently share a name. (Already merged ones won't appear.)</div></div>`;return;}
+  const nameOf=c=>{const G=groups.get(c);return G?displayName(G):c;};
+  panel.innerHTML=`<div class="suggest"><h3>Duplicate-name suggestions <span class="sub">— people sharing a name; review and merge if same</span></h3>
+    ${clusters.slice(0,40).map((cl,i)=>`
+      <div class="scluster">
+        <span class="nm">“${escapeHtml(cl.token)}”</span>
+        <span class="grow">${cl.canonicals.map(c=>`<span class="nm">${escapeHtml(nameOf(c))} <span class="mut">(${groups.get(c).ids.length} id)</span></span>`).join(" + ")}</span>
+        <button class="primary" data-mergecl="${i}">Merge these</button>
+      </div>`).join("")}</div>`;
+  panel.querySelectorAll("[data-mergecl]").forEach(b=>b.onclick=()=>{
+    const cl=clusters[+b.dataset.mergecl];
+    const [first,...rest]=cl.canonicals;rest.forEach(c=>union(first,c));saveState();selected.clear();renderOverview();renderSuggestions();toast("Merged "+cl.canonicals.length+" people");
+  });
+}
+
+/* ---------- GAMES render ---------- */
+const GM_COLS=[
+  {k:"id",label:"Game ID",num:false},
+  {k:"nPlayers",label:"Players",num:true},
+  {k:"buyInTotal",label:"Total buy-in",num:true},
+  {k:"buyOutTotal",label:"Total buy-out",num:true},
+  {k:"inGameTotal",label:"In-game",num:true},
+];
+let gmSort={k:"buyInTotal",asc:false};
+let expandedGame=new Set();
+
+function renderGames(){
+  let rows=GAMES.map(g=>({...g,nPlayers:g.players.length,pruned:state.prunedGames.has(g.id)}));
+  if(!$("#showPrunedGames").checked)rows=rows.filter(r=>!r.pruned);
+  const q=norm($("#gmSearch").value);
+  if(q)rows=rows.filter(r=>norm(r.id).includes(q)||r.players.some(p=>(p.names||[]).some(n=>norm(n).includes(q))));
+  rows.sort((a,b)=>{let x,y;if(gmSort.k==="id"){x=a.id;y=b.id;return gmSort.asc?(x<y?-1:1):(x>y?-1:1);}x=a[gmSort.k];y=b[gmSort.k];return gmSort.asc?x-y:y-x;});
+
+  const incl=GAMES.filter(g=>!state.prunedGames.has(g.id));
+  $("#gmCards").innerHTML=`
+    <div class="card"><div class="k">Games</div><div class="v">${incl.length}<span class="sub"> / ${GAMES.length}</span></div></div>
+    <div class="card"><div class="k">Total buy-in (incl.)</div><div class="v">${money(incl.reduce((s,g)=>s+g.buyInTotal,0))}</div></div>
+    <div class="card"><div class="k">Pruned games</div><div class="v">${state.prunedGames.size}</div></div>`;
+
+  const RO=window.READONLY;
+  $("#gmHead").innerHTML=GM_COLS.map(c=>{
+    const sortedCls=gmSort.k===c.k?("sorted "+(gmSort.asc?"asc":"")):"";
+    return `<th class="${sortedCls}" data-k="${c.k}">${c.label}</th>`;
+  }).join("")+(RO?"":`<th></th>`);
+  $("#gmHead").querySelectorAll("th[data-k]").forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(gmSort.k===k)gmSort.asc=!gmSort.asc;else{gmSort.k=k;gmSort.asc=(k==="id");}renderGames();});
+
+  const body=$("#gmBody");body.innerHTML="";
+  $("#gmEmpty").style.display=rows.length?"none":"block";
+  for(const r of rows){
+    const tr=document.createElement("tr");if(r.pruned)tr.className="muted-row";
+    tr.innerHTML=`
+      <td class="name"><a href="https://www.pokernow.com/games/${r.id}" target="_blank">${r.id}</a> <a href="#" data-gexp="${r.id}" class="sub">[${expandedGame.has(r.id)?"hide":"players"}]</a></td>
+      <td>${r.nPlayers}</td>
+      <td>${money(r.buyInTotal)}</td>
+      <td>${money(r.buyOutTotal)}</td>
+      <td>${money(r.inGameTotal)}</td>`+(RO?"":`
+      <td class="row-actions">
+        ${r.pruned?`<button data-grestore="${r.id}">Restore</button>`:`<button data-gprune="${r.id}" class="danger">Prune game</button>`}
+      </td>`);
+    body.appendChild(tr);
+    if(expandedGame.has(r.id)){
+      const er=document.createElement("tr");er.className="expand";const td=document.createElement("td");td.colSpan=RO?5:6;
+      const ps=r.players.slice().sort((a,b)=>b.net-a.net);
+      td.innerHTML=`<table class="minitable"><thead><tr><th style="text-align:left">Player</th><th style="text-align:left">ID</th><th>Buy-in</th><th>Buy-out</th><th>In-game</th><th>Net</th></tr></thead>
+        <tbody>${ps.map(p=>`<tr><td style="text-align:left">${escapeHtml((p.names||[]).join(" / "))}</td><td style="text-align:left"><span class="nm">${p.id}</span></td>
+          <td>${money(p.buyInSum)}</td><td>${money(p.buyOutSum)}</td><td>${money(p.inGame)}</td><td class="${cls(p.net)}">${money(p.net)}</td></tr>`).join("")}</tbody></table>`;
+      er.appendChild(td);body.appendChild(er);
+    }
+  }
+  body.querySelectorAll("[data-gexp]").forEach(a=>a.onclick=e=>{e.preventDefault();const id=a.dataset.gexp;expandedGame.has(id)?expandedGame.delete(id):expandedGame.add(id);renderGames();});
+  body.querySelectorAll("[data-gprune]").forEach(b=>b.onclick=()=>{state.prunedGames.add(b.dataset.gprune);saveState();refresh();toast("Game pruned");});
+  body.querySelectorAll("[data-grestore]").forEach(b=>b.onclick=()=>{state.prunedGames.delete(b.dataset.grestore);saveState();refresh();toast("Game restored");});
+}
+
+/* ---------- pruned persons restore (in overview when showPruned) ---------- */
+function renderPrunedPersons(){
+  // handled via showPruned: when checked, append a panel listing pruned persons with restore
+  const wrap=$("#suggestPanel");
+  if(!$("#showPruned").checked)return;
+  if(state.prunedPersons.size===0)return;
+  const div=document.createElement("div");div.className="suggest";
+  div.innerHTML=`<h3>Pruned people <span class="sub">— click to restore</span></h3>`+
+    [...state.prunedPersons].map(c=>`<span class="nm" style="cursor:pointer" data-restore="${c}">${escapeHtml(state.labels[c]||c)} ↩</span>`).join(" ");
+  wrap.prepend(div);
+  div.querySelectorAll("[data-restore]").forEach(s=>s.onclick=()=>{state.prunedPersons.delete(s.dataset.restore);saveState();refresh();toast("Person restored");});
+}
+
+/* ---------- misc ---------- */
+function escapeHtml(s){return (s+"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function refresh(){renderOverview();if(suggestOpen){renderSuggestions();}renderPrunedPersons();renderGames();
+  if($("#tab-charts").style.display!=="none")renderCharts();}
+
+let suggestOpen=false;
+
+/* ===================== CHARTS ===================== */
+let charts={};                 // canvasId -> Chart instance
+let chartVisibleMode="top";    // "top" (default-show top 10) or "all"
+const TOP_N=10;
+// Canvas can't resolve CSS vars — use a literal font stack for all chart text.
+const CHART_FONT='"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace';
+if(typeof Chart!=="undefined"){
+  Chart.defaults.font.family=CHART_FONT;
+  Chart.defaults.color="#586577";
+  Chart.defaults.borderColor="rgba(120,140,170,0.07)";
+}
+
+// Quant palette: a curated cyan→violet→amber spectrum that reads well on near-black.
+const PALETTE=["#34e3c8","#5fd0ff","#6f8cff","#a98bff","#e07be0","#ff7da6",
+               "#ff9d5c","#f5d24c","#9ee84a","#54d6a0","#48b9ff","#c08bff"];
+function colorFor(i,n){return PALETTE[i%PALETTE.length];}
+function withAlpha(hex,a){const h=hex.replace("#","");const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return `rgba(${r},${g},${b},${a})`;}
+// vertical gradient fill for a canvas context, fading a color into transparency
+function vgrad(ctx,area,hex,a0,a1){if(!area)return withAlpha(hex,a0);const g=ctx.createLinearGradient(0,area.top,0,area.bottom);g.addColorStop(0,withAlpha(hex,a0));g.addColorStop(1,withAlpha(hex,a1));return g;}
+const C_POS="#2fd6a6", C_NEG="#ff5d73", C_ACCENT="#34e3c8", C_VIOLET="#6f8cff", C_AMBER="#f5b14c";
+function toMoney(n){return unitDollars?n/100:n;}      // chart values respect $ / raw toggle
+function moneyAxis(v){const n=Number(v);const abs=Math.abs(n);
+  let s;
+  if(abs>=1000)s=(n/1000).toLocaleString(undefined,{maximumFractionDigits:1})+"k";
+  else s=n.toLocaleString(undefined,{maximumFractionDigits:0});
+  return unitDollars?(n<0?"-$"+s.replace("-",""):"$"+s):s;}
+function moneyFull(v){return unitDollars?("$"+Number(v).toLocaleString(undefined,{maximumFractionDigits:2})):Number(v).toLocaleString();}
+
+// Build per-person aggregates AND chronological per-game contributions,
+// honoring the live edit state (merges / prunes) exactly like the Overview.
+function chartModel(){
+  const survivingGames = GAMES.filter(g=>!state.prunedGames.has(g.id));
+  // person totals
+  const totals=new Map();   // canon -> {name, net, buyIn, games, wins}
+  for(const g of survivingGames){
+    for(const p of g.players){
+      const c=find(p.id);
+      if(state.prunedPersons.has(c))continue;
+      if(!totals.has(c))totals.set(c,{canon:c,names:new Set(),net:0,buyIn:0,games:0,wins:0});
+      const t=totals.get(c);
+      (p.names||[]).forEach(n=>t.names.add(n));
+      t.net+=p.net||0;t.buyIn+=p.buyInSum||0;t.games++;if((p.net||0)>0)t.wins++;
+    }
+  }
+  // display label: rename label > first name
+  for(const t of totals.values())
+    t.label = state.labels[t.canon] || [...t.names][0] || t.canon;
+  return {survivingGames, totals};
+}
+
+function renderCharts(){
+  if(typeof Chart==="undefined"){$("#chInfo").textContent="Chart.js not loaded";return;}
+  const {survivingGames, totals}=chartModel();
+  const minNet=(+$("#chMin").value||0)*100;          // threshold in raw units (cents)
+  const xMode=$("#chX").value;
+
+  // people passing the |net| filter, sorted by net desc
+  const people=[...totals.values()].filter(t=>Math.abs(t.net)>=minNet).sort((a,b)=>b.net-a.net);
+  const dated=survivingGames.filter(g=>g.date);
+  $("#chEmpty").style.display=dated.length?"none":"block";
+
+  // ---- summary cards ----
+  const biggestWin=people.length?people[0]:null;
+  const biggestLoss=people.length?people[people.length-1]:null;
+  const totalVol=survivingGames.reduce((s,g)=>s+g.buyInTotal,0);
+  $("#chCards").innerHTML=`
+    <div class="card"><div class="k">People shown</div><div class="v">${people.length}<span class="sub"> / ${totals.size}</span></div></div>
+    <div class="card"><div class="k">Dated games</div><div class="v">${dated.length}</div></div>
+    <div class="card"><div class="k">Total volume</div><div class="v">${moneyAxis(toMoney(totalVol))}</div></div>
+    ${biggestWin?`<div class="card"><div class="k">Top winner</div><div class="v pos">${escapeHtml(biggestWin.label)} <span class="sub">${moneyAxis(toMoney(biggestWin.net))}</span></div></div>`:""}
+    ${biggestLoss&&biggestLoss.net<0?`<div class="card"><div class="k">Biggest loser</div><div class="v neg">${escapeHtml(biggestLoss.label)} <span class="sub">${moneyAxis(toMoney(biggestLoss.net))}</span></div></div>`:""}`;
+  $("#chInfo").textContent=`${people.length} people · |net| ≥ ${moneyAxis(+$("#chMin").value||0)}`;
+
+  const gridColor="rgba(120,140,170,0.07)", tick="#586577", tickStrong="#aab4c2";
+  const tip={
+    backgroundColor:"rgba(7,9,13,.94)",borderColor:"#222c3a",borderWidth:1,
+    titleColor:"#dfe6ee",bodyColor:"#aab4c2",padding:10,cornerRadius:8,
+    titleFont:{family:CHART_FONT,weight:"600",size:12},bodyFont:{family:CHART_FONT,size:11},
+    boxPadding:5,usePointStyle:true,
+  };
+  const baseOpts=(extra={})=>Object.assign({
+    responsive:true,maintainAspectRatio:false,animation:{duration:500,easing:"easeOutQuart"},
+    font:{family:CHART_FONT},
+    plugins:{legend:{labels:{color:tickStrong,font:{family:CHART_FONT,size:11},usePointStyle:true,pointStyle:"circle",boxWidth:7,boxHeight:7,padding:14}},tooltip:tip},
+    scales:{x:{ticks:{color:tick,font:{family:CHART_FONT,size:10}},grid:{color:gridColor,drawTicks:false},border:{color:"#19212c"}},
+            y:{ticks:{color:tick,font:{family:CHART_FONT,size:10}},grid:{color:gridColor,drawTicks:false},border:{color:"#19212c"}}}
+  },extra);
+
+  /* ---- 1) cumulative net over time (multi-line) ---- */
+  {
+    const keep=new Set(people.map(p=>p.canon));
+    const cum=new Map([...keep].map(c=>[c,0]));
+    const series=new Map([...keep].map(c=>[c,[]]));
+    const labels=[];               // one x-label per dated game (date or session #)
+    let sess=0;
+    for(const g of dated){
+      sess++;
+      labels.push(xMode==="date"?g.date:String(sess));
+      const byc=new Map();
+      for(const p of g.players){const c=find(p.id);if(keep.has(c))byc.set(c,(byc.get(c)||0)+(p.net||0));}
+      for(const c of keep){
+        cum.set(c,cum.get(c)+(byc.get(c)||0));
+        series.get(c).push(toMoney(cum.get(c)));
+      }
+    }
+    const order=people.map(p=>p.canon);
+    const datasets=order.map((c,i)=>{
+      const t=totals.get(c); const col=colorFor(i,order.length);
+      const lead = chartVisibleMode==="top" ? i===0 : false;   // emphasize the leader
+      return {label:t.label,data:series.get(c),borderColor:col,
+        backgroundColor:(ctx)=>lead?vgrad(ctx.chart.ctx,ctx.chart.chartArea,col,.18,0):withAlpha(col,.04),
+        fill:lead?"origin":false,
+        borderWidth:lead?2.4:1.6,pointRadius:0,pointHoverRadius:4,pointHoverBackgroundColor:col,
+        pointHoverBorderColor:"#07090d",pointHoverBorderWidth:2,tension:.25,
+        borderJoinStyle:"round",
+        hidden: chartVisibleMode==="top" ? i>=TOP_N : false};
+    });
+    drawChart("cChrono","line",{labels,datasets},baseOpts({
+      interaction:{mode:"index",intersect:false},
+      plugins:{legend:{labels:{color:tickStrong,font:{family:CHART_FONT,size:11},usePointStyle:true,pointStyle:"circle",boxWidth:7,boxHeight:7,padding:12}},
+        tooltip:Object.assign({},tip,{mode:"index",intersect:false,itemSort:(a,b)=>b.parsed.y-a.parsed.y,
+          callbacks:{label:c=>`  ${c.dataset.label}  ${moneyFull(c.parsed.y)}`}})},
+      scales:{
+        x:{ticks:{color:tick,maxTicksLimit:12,autoSkip:true,maxRotation:0,font:{family:CHART_FONT,size:10}},grid:{color:gridColor,drawTicks:false},border:{color:"#19212c"},
+           title:{display:true,text:xMode==="date"?"DATE":"SESSION #",color:tick,font:{size:10,family:CHART_FONT}}},
+        y:{ticks:{color:tick,callback:moneyAxis,font:{family:CHART_FONT,size:10}},grid:{color:gridColor,drawTicks:false},border:{color:"#19212c"},
+           title:{display:true,text:"CUMULATIVE NET",color:tick,font:{size:10,family:CHART_FONT}}}
+      }
+    }));
+  }
+
+  /* ---- 2) net by player (horizontal bar) ---- */
+  {
+    const labels=people.map(p=>p.label);
+    const data=people.map(p=>toMoney(p.net));
+    drawChart("cLeader","bar",{labels,datasets:[{data,
+      backgroundColor:(ctx)=>{const v=ctx.raw;const col=v>=0?C_POS:C_NEG;return ctx.chart.chartArea?vgrad(ctx.chart.ctx,ctx.chart.chartArea,col,.95,.5):withAlpha(col,.8);},
+      borderWidth:0,borderRadius:4,borderSkipped:false,barPercentage:.82,categoryPercentage:.86,
+      hoverBackgroundColor:data.map(v=>v>=0?C_POS:C_NEG)}]},baseOpts({
+        indexAxis:"y",plugins:{legend:{display:false},
+          tooltip:Object.assign({},tip,{callbacks:{title:c=>c[0].label,label:c=>"  net  "+moneyFull(c.parsed.x)}})},
+        scales:{x:{ticks:{color:tick,callback:moneyAxis,font:{family:CHART_FONT,size:10}},grid:{color:gridColor,drawTicks:false},border:{color:"#19212c"}},
+                y:{ticks:{color:tickStrong,autoSkip:false,font:{size:10,family:CHART_FONT}},grid:{display:false},border:{display:false}}}
+      }));
+  }
+
+  /* ---- 3) biggest single sessions ---- */
+  {
+    const rows=[];
+    for(const g of survivingGames){
+      for(const p of g.players){
+        const c=find(p.id);if(state.prunedPersons.has(c))continue;
+        if(Math.abs(p.net||0)>=minNet)rows.push({label:(state.labels[c]||(p.names||[])[0]||c),net:p.net,date:g.date});
+      }
+    }
+    rows.sort((a,b)=>Math.abs(b.net)-Math.abs(a.net));
+    const top=rows.slice(0,20);
+    drawChart("cSessions","bar",{
+      labels:top.map(r=>`${r.label}${r.date?" · "+r.date.slice(2):""}`),
+      datasets:[{data:top.map(r=>toMoney(r.net)),
+        backgroundColor:(ctx)=>{const v=ctx.raw;const col=v>=0?C_POS:C_NEG;return ctx.chart.chartArea?vgrad(ctx.chart.ctx,ctx.chart.chartArea,col,.95,.55):withAlpha(col,.8);},
+        borderRadius:4,borderSkipped:false,barPercentage:.82,categoryPercentage:.86,
+        hoverBackgroundColor:top.map(r=>r.net>=0?C_POS:C_NEG)}]
+    },baseOpts({indexAxis:"y",plugins:{legend:{display:false},
+      tooltip:Object.assign({},tip,{callbacks:{label:c=>"  net  "+moneyFull(c.parsed.x)}})},
+      scales:{x:{ticks:{color:tick,callback:moneyAxis,font:{family:CHART_FONT,size:10}},grid:{color:gridColor,drawTicks:false},border:{color:"#19212c"}},
+              y:{ticks:{color:tickStrong,autoSkip:false,font:{size:10,family:CHART_FONT}},grid:{display:false},border:{display:false}}}}));
+  }
+
+  /* ---- 4) monthly volume + games ---- */
+  {
+    const byMonth=new Map();
+    for(const g of dated){
+      const m=g.date.slice(0,7);
+      if(!byMonth.has(m))byMonth.set(m,{vol:0,games:0});
+      const e=byMonth.get(m);e.vol+=g.buyInTotal;e.games++;
+    }
+    const months=[...byMonth.keys()].sort();
+    drawChart("cMonthly","bar",{labels:months,datasets:[
+      {label:"buy-in volume",data:months.map(m=>toMoney(byMonth.get(m).vol)),
+        backgroundColor:(ctx)=>ctx.chart.chartArea?vgrad(ctx.chart.ctx,ctx.chart.chartArea,C_VIOLET,.85,.25):withAlpha(C_VIOLET,.6),
+        borderRadius:4,borderSkipped:false,barPercentage:.7,yAxisID:"y",hoverBackgroundColor:C_VIOLET},
+      {label:"games",type:"line",data:months.map(m=>byMonth.get(m).games),
+        borderColor:C_AMBER,backgroundColor:C_AMBER,borderWidth:2,pointRadius:0,pointHoverRadius:4,
+        pointHoverBackgroundColor:C_AMBER,pointHoverBorderColor:"#07090d",pointHoverBorderWidth:2,
+        yAxisID:"y1",tension:.35}
+    ]},baseOpts({
+      interaction:{mode:"index",intersect:false},
+      plugins:{legend:{labels:{color:tickStrong,usePointStyle:true,pointStyle:"circle",boxWidth:7,boxHeight:7,padding:14,font:{family:CHART_FONT,size:11}}},
+        tooltip:Object.assign({},tip,{callbacks:{label:c=>c.dataset.yAxisID==="y1"?`  ${c.parsed.y} games`:"  vol  "+moneyFull(c.parsed.y)}})},
+      scales:{x:{ticks:{color:tick,font:{family:CHART_FONT,size:10}},grid:{color:gridColor,drawTicks:false},border:{color:"#19212c"}},
+        y:{position:"left",ticks:{color:tick,callback:moneyAxis,font:{family:CHART_FONT,size:10}},grid:{color:gridColor,drawTicks:false},border:{color:"#19212c"},title:{display:true,text:"VOLUME",color:tick,font:{size:10,family:CHART_FONT}}},
+        y1:{position:"right",ticks:{color:tick,font:{family:CHART_FONT,size:10}},grid:{display:false},border:{display:false},title:{display:true,text:"GAMES",color:tick,font:{size:10,family:CHART_FONT}}}}
+    }));
+  }
+
+  /* ---- 5) risk vs reward bubble (buy-in volume x net, size=games) ---- */
+  {
+    const pts=people.map((p,i)=>({x:toMoney(p.buyIn),y:toMoney(p.net),r:Math.max(5,Math.sqrt(p.games)*2.4),
+      label:p.label,games:p.games}));
+    drawChart("cScatter","bubble",{datasets:[{data:pts,
+      backgroundColor:pts.map(p=>withAlpha(p.y>=0?C_POS:C_NEG,.16)),
+      borderColor:pts.map(p=>p.y>=0?C_POS:C_NEG),borderWidth:1.4,
+      hoverBackgroundColor:pts.map(p=>withAlpha(p.y>=0?C_POS:C_NEG,.32))}]},baseOpts({
+      plugins:{legend:{display:false},tooltip:Object.assign({},tip,{callbacks:{title:c=>c[0].raw.label,label:c=>{const d=c.raw;return [`  net   ${moneyFull(d.y)}`,`  vol   ${moneyFull(d.x)}`,`  games ${d.games}`];}}})},
+      scales:{x:{ticks:{color:tick,callback:moneyAxis,font:{family:CHART_FONT,size:10}},grid:{color:gridColor,drawTicks:false},border:{color:"#19212c"},title:{display:true,text:"TOTAL BUY-IN (VOLUME)",color:tick,font:{size:10,family:CHART_FONT}}},
+              y:{ticks:{color:tick,callback:moneyAxis,font:{family:CHART_FONT,size:10}},grid:{color:gridColor,drawTicks:false},border:{color:"#19212c"},title:{display:true,text:"NET",color:tick,font:{size:10,family:CHART_FONT}}}}
+    }));
+  }
+}
+
+function drawChart(id,type,data,options){
+  const canvas=document.getElementById(id);
+  // Destroy ANY chart bound to this canvas (covers the case where a previous
+  // construction threw before we stored the handle) — prevents "canvas in use".
+  const existing=(Chart.getChart&&Chart.getChart(canvas))||charts[id];
+  if(existing){try{existing.destroy();}catch(e){}}
+  charts[id]=new Chart(canvas,{type,data,options});
+}
+
+/* ---------- wire up ---------- */
+function init(){
+  if(window.READONLY)document.body.classList.add("readonly");
+  if(!GAMES.length){
+    document.body.insertAdjacentHTML("beforeend",`<div class="empty">No data loaded. Make sure <code>data.js</code> exists (run build_data.py after the fetch finishes).</div>`);
+  }
+  loadState();
+  $("#dataset-pill").textContent=`${GAMES.length} games loaded`;
+  // tabs
+  document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));t.classList.add("active");
+    const tab=t.dataset.tab;
+    $("#tab-overview").style.display=tab==="overview"?"block":"none";
+    $("#tab-games").style.display=tab==="games"?"block":"none";
+    $("#tab-charts").style.display=tab==="charts"?"block":"none";
+    if(tab==="charts")renderCharts();
+  });
+  $("#chMin").oninput=renderCharts;
+  $("#chX").onchange=renderCharts;
+  $("#chTop").onclick=()=>{chartVisibleMode="top";renderCharts();};
+  $("#chAll").onclick=()=>{chartVisibleMode="all";renderCharts();};
+  $("#unitBtn").onclick=()=>{unitDollars=!unitDollars;$("#unitBtn").textContent=unitDollars?"$ USD":"# RAW";refresh();};
+  $("#ovSearch").oninput=renderOverview;
+  $("#gmSearch").oninput=renderGames;
+  $("#showPruned").onchange=()=>{ if($("#showPruned").checked){/* show pruned persons panel */} refresh(); };
+  $("#showPrunedGames").onchange=renderGames;
+  $("#suggestBtn").onclick=()=>{suggestOpen=!suggestOpen;if(suggestOpen){renderSuggestions();renderPrunedPersons();}else{$("#suggestPanel").innerHTML="";}};
+  $("#mergeSelBtn").onclick=()=>{
+    const arr=[...selected];if(arr.length<2)return;const [first,...rest]=arr;rest.forEach(c=>union(first,c));
+    saveState();selected.clear();refresh();toast("Merged "+arr.length+" people");
+  };
+  $("#clearSelBtn").onclick=()=>{selected.clear();refresh();};
+  $("#exportBtn").onclick=()=>{
+    const out={parent:state.parent,labels:state.labels,prunedPersons:[...state.prunedPersons],prunedGames:[...state.prunedGames]};
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:"application/json"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="pokerstats-edits.json";a.click();
+  };
+  $("#importBtn").onclick=()=>$("#importFile").click();
+  $("#importFile").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const s=JSON.parse(r.result);state.parent=s.parent||{};state.labels=s.labels||{};state.prunedPersons=new Set(s.prunedPersons||[]);state.prunedGames=new Set(s.prunedGames||[]);saveState();refresh();toast("Edits imported");}catch(err){alert("Bad file: "+err);}};r.readAsText(f);};
+  $("#resetBtn").onclick=()=>{if(confirm("Reset ALL merges, renames and prunes?")){state={parent:{},labels:{},prunedPersons:new Set(),prunedGames:new Set()};saveState();selected.clear();refresh();toast("Reset");}};
+
+  refresh();
+}
+init();
+</script>
+</body>
+</html>
