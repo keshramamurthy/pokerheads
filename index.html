@@ -366,7 +366,10 @@ function aggregate(){
 /* ---------- name helpers ---------- */
 function norm(s){return (s||"").toLowerCase().replace(/[^a-z0-9]/g,"");}
 function displayName(G){
+  // a label can sit on any id in the group (later merges can move the root),
+  // so check every member id, not just the canonical root
   if(state.labels[G.canonical])return state.labels[G.canonical];
+  for(const id of G.ids){ if(state.labels[id]) return state.labels[id]; }
   // most common / first name
   const arr=[...G.names];
   return arr[0]||G.canonical;
