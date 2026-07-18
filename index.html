@@ -64,6 +64,9 @@
     background:var(--accent);box-shadow:0 0 10px rgba(52,227,200,.7);border-radius:2px;
   }
   .spacer{flex:1}
+  .toplink{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:600;
+    border:1px solid var(--line2);border-radius:7px;padding:6px 11px;transition:all .15s}
+  .toplink:hover{color:var(--accent);border-color:var(--accent-dim);text-decoration:none;box-shadow:0 0 14px -8px var(--accent)}
 
   .toolbar{
     display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 22px;
@@ -287,7 +290,7 @@ const LS_KEY = "pokerstats_edits_v1";
    public READONLY build (which seeds labels via config.js) skips it. */
 (function(){
   if(window.READONLY)return;
-  const SEED_VER="2026-06-18";
+  const SEED_VER="2026-07-17";
   try{
     if(localStorage.getItem("pokerstats_seed_ver")===SEED_VER)return;
     const x=new XMLHttpRequest();
